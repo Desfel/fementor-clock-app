@@ -113,7 +113,7 @@ export default {
         this.errors.push(e)
       })
 
-    axios.get('http://worldtimeapi.org/api/ip')
+    axios.get('https://worldtimeapi.org/api/ip')
       .then(clockResponse => {
         this.clockInfo = clockResponse.data
         const urlSearchParams = new URLSearchParams(window.location.search)
