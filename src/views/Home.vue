@@ -1,31 +1,38 @@
 <template>
-  <div class="page-wrapper" :class="{'is-opened': isOpened}">
+  <div class="page-wrapper" :class="{'is-opened': isOpened, 'is-night' : stateOfDay === 'night'}">
     <div class="main-content-wrapper" v-bind:style="{ bottom: moreInfoTop + 'px' }">
       <section class="quote-section">
         <div class="quote-content">
-          <p class="quote">“The science of operations, as derived from mathematics more especially,
-            is a science of itself, and has its own abstract truth and value.”</p>
-          <p class="author">Ada Lovelace</p>
+          <p class="quote" v-text="`“${quotesArray[randomIndex].en}”`"></p>
+          <p class="author" v-text="quotesArray[randomIndex].author"></p>
         </div>
 
-        <a href="#" class="refresh-icon">
+        <a href="#" class="refresh-icon" @click="randomizeQuote">
           <svg width="18" height="18" xmlns="http://www.w3.org/2000/svg"><path d="M7.188 10.667a.208.208 0 01.147.355l-2.344 2.206a5.826 5.826 0 009.578-2.488l2.387.746A8.322 8.322 0 013.17 14.94l-2.149 2.022a.208.208 0 01-.355-.148v-6.148h6.52zm7.617-7.63L16.978.958a.208.208 0 01.355.146v6.23h-6.498a.208.208 0 01-.147-.356L13 4.765A5.825 5.825 0 003.43 7.26l-2.386-.746a8.32 8.32 0 0113.76-3.477z" fill="#FFF" fill-rule="nonzero" /></svg>
         </a>
       </section>
 
       <section class="clock-section">
         <div class="clock-wrapper">
-          <p class="greeting-text">
+          <p v-if="stateOfDay === 'morning'" class="greeting-text">
             <img src="@/assets/img/desktop/icon-sun.svg" alt="Daytime Sun">
-            GOOD MORNING, IT’S CURRENTLY
+            GOOD MORNING<span>, IT’S CURRENTLY</span>
+          </p>
+          <p v-else-if="stateOfDay === 'afternoon'" class="greeting-text">
+            <img src="@/assets/img/desktop/icon-sun.svg" alt="Afternoon Sun">
+            GOOD AFTERNOON<span>, IT’S CURRENTLY</span>
+          </p>
+          <p v-else-if="stateOfDay === 'night'" class="greeting-text">
+            <img src="@/assets/img/desktop/icon-moon.svg" alt="Night Moon">
+            GOOD EVENING<span>, IT’S CURRENTLY</span>
           </p>
 
           <div class="clock-time-wrapper">
-            <p class="clock-time">11:37</p>
-            <p class="clock-timezone">BST</p>
+            <p class="clock-time" v-text="formattedTime">11:37</p>
+            <p class="clock-timezone" v-text="clockInfo.abbreviation">BST</p>
           </div>
 
-          <p class="clock-location">IN LONDON, UK</p>
+          <p class="clock-location" v-text="`IN ${currentLocation.city}, ${currentLocation.country_code}`">IN LONDON, UK</p>
         </div>
 
         <a href="#" class="site-btn" :class="{'is-opened': isOpened}" @click="openInfoBlock">
@@ -41,22 +48,22 @@
       <div class="left-content info-block">
         <div class="info-wrapper">
           <p class="info-type">CURRENT TIMEZONE</p>
-          <p class="info-value">Europe/London</p>
+          <p class="info-value" v-text="clockInfo.timezone">Europe/London</p>
         </div>
         <div class="info-wrapper">
           <p class="info-type">Day of the year</p>
-          <p class="info-value">295</p>
+          <p class="info-value" v-text="clockInfo.day_of_year">295</p>
         </div>
       </div>
 
       <div class="right-content info-block">
         <div class="info-wrapper">
           <p class="info-type">Day of the week</p>
-          <p class="info-value">5</p>
+          <p class="info-value" v-text="clockInfo.day_of_week">5</p>
         </div>
         <div class="info-wrapper">
           <p class="info-type">Week number</p>
-          <p class="info-value">6</p>
+          <p class="info-value" v-text="clockInfo.week_number">6</p>
         </div>
       </div>
     </section>
@@ -65,12 +72,21 @@
 
 <script>
 import { mapState } from 'vuex'
+import axios from 'axios'
+import moment from 'moment'
 
 export default {
   data() {
     return {
+      quotesArray: [{ en: '', author: '' }],
+      clockInfo: [],
+      formattedTime: '',
+      stateOfDay: 'night',
+      currentLocation: [],
+      randomIndex: 0,
       isOpened: false,
-      moreInfoTop: 0
+      moreInfoTop: 0,
+      errors: []
     }
   },
   head() {
@@ -87,11 +103,68 @@ export default {
       ]
     }
   },
+  created() {
+    axios.get('https://programming-quotes-api.herokuapp.com/Quotes?count=32')
+      .then(quoteResponse => {
+        this.quotesArray = quoteResponse.data
+        this.randomIndex = Math.floor((Math.random()*31))
+      })
+      .catch(e => {
+        this.errors.push(e)
+      })
+
+    axios.get('http://worldtimeapi.org/api/ip')
+      .then(clockResponse => {
+        this.clockInfo = clockResponse.data
+        const urlSearchParams = new URLSearchParams(window.location.search)
+        const urlParams = Object.fromEntries(urlSearchParams.entries())
+        const urlParamsLength = Object.keys(urlParams).length
+        let currentHour = moment(this.clockInfo.datetime).format('k')
+        let currentMinute = moment(this.clockInfo.datetime).format('m')
+        this.formattedTime = moment(this.clockInfo.datetime).format('kk:mm')
+
+        if (urlParamsLength === 2) {
+          currentHour = urlParams.hour
+          currentMinute = urlParams.minute
+          this.formattedTime = `${urlParams.hour}:${urlParams.minute}`
+        }
+
+        if (
+          currentHour >= 5 &&
+          currentMinute >= 0 &&
+          (currentHour <= 11 && currentMinute <= 59)
+        ) {
+          this.stateOfDay = 'morning'
+        } else if (
+          currentHour >= 12 &&
+          currentMinute >= 0 &&
+          (currentHour <= 17 && currentMinute <= 59)
+        ) {
+          this.stateOfDay = 'afternoon'
+        }
+      })
+      .catch(e => {
+        this.errors.push(e)
+      })
+
+    axios.get(`https://api.freegeoip.app/json/?apikey=81722c80-4f42-11ec-9c76-5946d4511b39`)
+      .then(geoResponse => {
+        this.currentLocation = geoResponse.data
+      })
+      .catch(e => {
+        this.errors.push(e)
+      })
+  },
   methods: {
     openInfoBlock(e) {
       e.preventDefault()
       this.isOpened = !this.isOpened
       this.moreInfoTop = this.isOpened ? document.querySelector('.more-info-section').clientHeight : 0
+    },
+    randomizeQuote(e) {
+      e.preventDefault()
+      this.randomIndex = Math.floor((Math.random()*31))
+      console.log(this.randomIndex)
     }
   },
   computed: mapState('app', ['appTitle'])
@@ -328,6 +401,12 @@ export default {
           line-height: 25px;
         }
 
+        span {
+          @media (max-width: 767px) {
+            display: none;
+          }
+        }
+
         img {
           margin-right: 16px;
         }
@@ -358,6 +437,7 @@ export default {
         }
 
         .clock-timezone {
+          margin-left: 12px;
           font-weight: 300;
           font-size: 40px;
           line-height: 28px;
@@ -432,7 +512,7 @@ export default {
         @media (max-width: 1024px) {
           padding: 0;
           margin-right: 80px;
-          border: none;
+          border: none !important;
         }
 
         @media (max-width: 767px) {
