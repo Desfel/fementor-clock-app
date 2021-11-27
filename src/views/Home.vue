@@ -78,9 +78,9 @@ import moment from 'moment'
 export default {
   data() {
     return {
-      quotesArray: [{ en: '', author: '' }],
+      quotesArray: [{ en: `“Nine women can't make a baby in one month.”`, author: 'Fred Brooks' }],
       clockInfo: [],
-      formattedTime: '',
+      formattedTime: '12:59',
       stateOfDay: 'night',
       currentLocation: [],
       randomIndex: 0,
